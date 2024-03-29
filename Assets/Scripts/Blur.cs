@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
@@ -13,7 +14,6 @@ public class Blur : MonoBehaviour
     private float BufferScale => 1f / _blurStrength;
     
     private Camera _camera;
-    private RenderTexture _renderTexture;
     private RenderTexture _scaledRenderTexture;
 
     private CommandBuffer _commandBuffer;
@@ -29,9 +29,19 @@ public class Blur : MonoBehaviour
 
     private static readonly int GrabTextureId = Shader.PropertyToID("_GrabTexture");
 
-    private void Awake()
+    private void OnEnable()
     {
         _camera = GetComponent<Camera>();
+        _camera.AddCommandBuffer(CameraEvent.AfterHaloAndLensFlares, CommandBuffer);
+
+        CreateScaledRenderTexture();
+    }
+
+    private void OnDisable()
+    {
+        _camera.RemoveCommandBuffer(CameraEvent.AfterHaloAndLensFlares, CommandBuffer);
+        
+        RenderTexture.ReleaseTemporary(_scaledRenderTexture);
     }
 
     private void OnDestroy()
@@ -39,34 +49,47 @@ public class Blur : MonoBehaviour
         _commandBuffer?.Dispose();
     }
 
-    private void OnPreRender()
+#if UNITY_EDITOR
+    private void OnValidate()
     {
-        RenderTexture.ReleaseTemporary(_scaledRenderTexture);
-        CommandBuffer.ReleaseTemporaryRT(GrabTextureId);
-        
-        ExecuteCommandBuffer();
-    }
-
-    private void ExecuteCommandBuffer()
-    {
-        Graphics.ExecuteCommandBuffer(_commandBuffer);
-        _commandBuffer.Clear();
-    }
-
-    private void OnPostRender()
-    {
-        if (_targetElement == null || _targetElement.material == null)
+        if (!_scaledRenderTexture)
             return;
 
+        var newSize = GetScaledBufferSize();
+        
+        if (_scaledRenderTexture.width == newSize.x && _scaledRenderTexture.height == newSize.y)
+            return;
+        
+        RenderTexture.ReleaseTemporary(_scaledRenderTexture);
+        CreateScaledRenderTexture();
+    }
+#endif
+
+    private void CreateScaledRenderTexture()
+    {
         _scaledRenderTexture = RenderTexture.GetTemporary(GetTextureDescriptor(GetScaledBufferSize()));
+        _scaledRenderTexture.name = "Scaled Blur RT";
+    }
+
+    private void OnPreRender()
+    {
+        CommandBuffer.Clear();
+        
+        CommandBuffer.ReleaseTemporaryRT(GrabTextureId);
+        
+        if (_targetElement == null || _targetElement.material == null)
+            return;
+        
         CommandBuffer.GetTemporaryRT(GrabTextureId, GetTextureDescriptor(GetBufferSize()));
         
         CommandBuffer.Blit(_camera.targetTexture, GrabTextureId);
         CommandBuffer.Blit(GrabTextureId, _scaledRenderTexture);
-        
-        ExecuteCommandBuffer();
-        
-        _targetElement.texture = _scaledRenderTexture;
+    }
+
+    private void Update()
+    {
+        if (_targetElement)
+            _targetElement.texture = _scaledRenderTexture;
     }
 
     private Vector2Int GetBufferSize()

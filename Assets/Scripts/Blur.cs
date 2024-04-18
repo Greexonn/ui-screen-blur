@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
@@ -14,7 +13,6 @@ public class Blur : MonoBehaviour
     private float BufferScale => 1f / _blurStrength;
     
     private Camera _camera;
-    private RenderTexture _scaledRenderTexture;
 
     private CommandBuffer _commandBuffer;
 
@@ -27,21 +25,17 @@ public class Blur : MonoBehaviour
         }
     }
 
-    private static readonly int GrabTextureId = Shader.PropertyToID("_GrabTexture");
+    private static readonly int BlurSourceId = Shader.PropertyToID("_BlurSource");
 
     private void OnEnable()
     {
         _camera = GetComponent<Camera>();
         _camera.AddCommandBuffer(CameraEvent.AfterHaloAndLensFlares, CommandBuffer);
-
-        CreateScaledRenderTexture();
     }
 
     private void OnDisable()
     {
         _camera.RemoveCommandBuffer(CameraEvent.AfterHaloAndLensFlares, CommandBuffer);
-        
-        RenderTexture.ReleaseTemporary(_scaledRenderTexture);
     }
 
     private void OnDestroy()
@@ -49,56 +43,19 @@ public class Blur : MonoBehaviour
         _commandBuffer?.Dispose();
     }
 
-#if UNITY_EDITOR
-    private void OnValidate()
-    {
-        if (!_scaledRenderTexture)
-            return;
-
-        var newSize = GetScaledBufferSize();
-        
-        if (_scaledRenderTexture.width == newSize.x && _scaledRenderTexture.height == newSize.y)
-            return;
-        
-        RenderTexture.ReleaseTemporary(_scaledRenderTexture);
-        CreateScaledRenderTexture();
-    }
-#endif
-
-    private void CreateScaledRenderTexture()
-    {
-        _scaledRenderTexture = RenderTexture.GetTemporary(GetTextureDescriptor(GetScaledBufferSize()));
-        _scaledRenderTexture.name = "Scaled Blur RT";
-    }
-
-    private void OnPreRender()
+    private void Update()
     {
         CommandBuffer.Clear();
         
-        CommandBuffer.ReleaseTemporaryRT(GrabTextureId);
+        CommandBuffer.ReleaseTemporaryRT(BlurSourceId);
         
         if (_targetElement == null || _targetElement.material == null)
             return;
-        
-        CommandBuffer.GetTemporaryRT(GrabTextureId, GetTextureDescriptor(GetBufferSize()));
-        
-        CommandBuffer.Blit(_camera.targetTexture, GrabTextureId);
-        CommandBuffer.Blit(GrabTextureId, _scaledRenderTexture);
-    }
 
-    private void Update()
-    {
-        if (_targetElement)
-            _targetElement.texture = _scaledRenderTexture;
-    }
-
-    private Vector2Int GetBufferSize()
-    {
-        return new Vector2Int
-        {
-            x = Mathf.Max(_camera.pixelWidth, 1),
-            y = Mathf.Max(_camera.pixelHeight, 1)
-        };
+        var scaledSize = GetScaledBufferSize();
+        CommandBuffer.GetTemporaryRT(BlurSourceId, scaledSize.x, scaledSize.y, 0, FilterMode.Bilinear, RenderTextureFormat.Default);
+        
+        CommandBuffer.Blit(BuiltinRenderTextureType.CameraTarget, BlurSourceId);
     }
 
     private Vector2Int GetScaledBufferSize()
@@ -108,16 +65,6 @@ public class Blur : MonoBehaviour
         {
             x = Mathf.Max((int)(_camera.pixelWidth * bufferScale), 1),
             y = Mathf.Max((int)(_camera.pixelHeight * bufferScale), 1)
-        };
-    }
-
-    private static RenderTextureDescriptor GetTextureDescriptor(Vector2Int bufferSize)
-    {
-        return new RenderTextureDescriptor(bufferSize.x, bufferSize.y)
-        {
-            graphicsFormat = GraphicsFormatUtility.GetGraphicsFormat(RenderTextureFormat.Default, RenderTextureReadWrite.Default),
-            depthBufferBits = 0,
-            msaaSamples = 1
         };
     }
 }

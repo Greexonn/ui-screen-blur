@@ -6,10 +6,22 @@ Shader "Unlit/BluredImage"
     }
     SubShader
     {
-        Tags { "RenderType"="Opaque" }
+        Tags
+        {
+            "Queue"="Transparent"
+            "IgnoreProjector"="True"
+            "RenderType"="Transparent"
+            "PreviewType"="Plane"
+            "CanUseSpriteAtlas"="True"
+        }
+        
         LOD 100
         
-        
+        Cull Off
+        Lighting Off
+        ZWrite Off
+        ZTest Always
+        Blend SrcAlpha OneMinusSrcAlpha
 
         Pass
         {
@@ -23,34 +35,39 @@ Shader "Unlit/BluredImage"
             struct appdata
             {
                 float4 vertex : POSITION;
+                float4 color : COLOR;
                 float2 uv : TEXCOORD0;
             };
 
             struct v2f
             {
-                float2 uv : TEXCOORD0;
                 float4 vertex : SV_POSITION;
+                fixed4 color : COLOR;
+                float2 uv : TEXCOORD0;
             };
-
-            // sampler2D _MainTex;
-            TEXTURE2D(_MainTex);
-            SAMPLER(sampler_MainTex);
-            float4 _MainTex_TexelSize;
-            float4 _MainTex_ST;
-            float4 _PostFXSource_TexelSize;
+            
+            TEXTURE2D(_BlurSource);
+            SAMPLER(sampler_BlurSource);
+            float4 _BlurSource_TexelSize;
+            float4 _BlurSource_ST;
 
             v2f vert (appdata v)
             {
                 v2f o;
+                
                 o.vertex = UnityObjectToClipPos(v.vertex);
-                o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+                o.color = v.color;
+                o.uv = TRANSFORM_TEX(v.uv, _BlurSource);
+                
                 return o;
             }
 
             fixed4 frag (v2f i) : SV_Target
             {
-                fixed4 col = SampleTexture2DBicubic(TEXTURE2D_ARGS(_MainTex, sampler_MainTex),i.uv, _MainTex_TexelSize.zwxy, 1.0, 0.0);
-                return col;
+                fixed4 col = SampleTexture2DBicubic(TEXTURE2D_ARGS(_BlurSource, sampler_BlurSource),i.uv, _BlurSource_TexelSize.zwxy, 1.0, 0.0);
+                col.a = 1.0;
+                
+                return col * i.color;
             }
             ENDCG
         }

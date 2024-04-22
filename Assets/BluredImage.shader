@@ -1,4 +1,4 @@
-Shader "Unlit/BluredImage"
+Shader "Custom/BluredImage"
 {
     Properties
     {
@@ -45,11 +45,10 @@ Shader "Unlit/BluredImage"
                 fixed4 color : COLOR;
                 float2 uv : TEXCOORD0;
             };
-            
-            TEXTURE2D(_BlurSource);
-            SAMPLER(sampler_BlurSource);
-            float4 _BlurSource_TexelSize;
-            float4 _BlurSource_ST;
+
+            TEXTURE2D(_BlurFinal);
+            SAMPLER(sampler_BlurFinal);
+            float4 _BlurFinal_ST;
 
             v2f vert (appdata v)
             {
@@ -57,14 +56,14 @@ Shader "Unlit/BluredImage"
                 
                 o.vertex = UnityObjectToClipPos(v.vertex);
                 o.color = v.color;
-                o.uv = TRANSFORM_TEX(v.uv, _BlurSource);
+                o.uv = TRANSFORM_TEX(v.uv, _BlurFinal);
                 
                 return o;
             }
 
             fixed4 frag (v2f i) : SV_Target
             {
-                fixed4 col = SampleTexture2DBicubic(TEXTURE2D_ARGS(_BlurSource, sampler_BlurSource),i.uv, _BlurSource_TexelSize.zwxy, 1.0, 0.0);
+                fixed4 col = SAMPLE_TEXTURE2D_LOD(_BlurFinal, sampler_BlurFinal, i.uv, 0.0);
                 col.a = 1.0;
                 
                 return col * i.color;

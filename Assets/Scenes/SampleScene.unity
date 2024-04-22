@@ -14989,8 +14989,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3388f4f5b1a3e4822b225f7787cada6a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _blurStrength: 100
-  _targetElement: {fileID: 905117880}
+  _blurShader: {fileID: 4800000, guid: 7719671f4bb854309bbec28b1e53c3d1, type: 3}
+  _maxIterations: 3
+  _startDownscale: 10
+  _downscaleLimit: 2
 --- !u!1 &1131653813
 GameObject:
   m_ObjectHideFlags: 0

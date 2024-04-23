@@ -2,8 +2,9 @@
 #define DUAL_FILTER_INCLUDED
 
 #include "Filter.hlsl"
+#include "UnityCG.cginc"
 
-float4 _ProjectionParams;
+// float4 _ProjectionParams;
 
 TEXTURE2D(_BlurSource);
 TEXTURE2D(_BlurSource2);
@@ -37,12 +38,13 @@ Varyings DefaultPassVertex (const uint vertexID : SV_VertexID)
 {
     Varyings output;
     output.positionCS = float4(vertexID <= 1 ? -1.0 : 3.0, vertexID == 1 ? 3.0 : -1.0, 0.0, 1.0);
-    output.screenUV = float2(vertexID <= 1 ? 0.0 : 2.0, vertexID == 1 ? 2.0 : 0.0);
+    // output.screenUV = float2(vertexID <= 1 ? 0.0 : 2.0, vertexID == 1 ? 2.0 : 0.0);
+    output.screenUV = ComputeGrabScreenPos(output.positionCS);
 
-    if (_ProjectionParams.x < 0.0)
-    {
-        output.screenUV.y = 1.0 - output.screenUV.y;
-    }
+    // if (_ProjectionParams.x < 0.0)
+    // {
+    //     output.screenUV.y = 1.0 - output.screenUV.y;
+    // }
     
     return output;
 }
